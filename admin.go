@@ -21,30 +21,34 @@ import (
 )
 
 func main() {
+  var appendUser bool
   var docsPath string
   var accProcessFile string
-  adduser := flag.Bool("adduser", false, "Add default user")
-  flag.StringVar(&docsPath, "maketestdata", "", "Reset Docs Collection")
-  flag.StringVar(&accProcessFile, "importaccprocess", "", "Import Account Process from csv")
+  var user string
+
+  flag.BoolVar(&appendUser, "adduser", false, "Add default user")
+  flag.StringVar(&docsPath, "importtestdocs", "", "Reset docs collection")
+  flag.StringVar(&accProcessFile, "importaccprocess", "", "Import account process from csv")
+  flag.StringVar(&user, "user", "", "User to access http-server")
   flag.Parse()
 
-  if *adduser {
+  if appendUser {
     AppendUser()
   }
 
-  if accProcessFile != "" {
-    ImportAccProcessFile(accProcessFile)
+  if (accProcessFile != "") && (user != "") {
+    ImportAccProcessFile(accProcessFile, user)
   }
 
-  if docsPath != "" {
-    MakeTestData(docsPath)
+  if (docsPath != "") && (user != "") {
+    ImportTestDocs(docsPath, user)
   }
 }
 
-func ImportAccProcessFile(accProcessFile string) {
+func ImportAccProcessFile(accProcessFile string, user string) {
   urlPrefix := ReadURLPrefix()
   client := http.DefaultClient
-  token := LoginWithDefaultUser(client)
+  token := LoginWithUser(client, user)
 
   accProcessList, err := bebber.ReadAccProcessFile(accProcessFile)
   if err != nil {
@@ -75,15 +79,19 @@ func ImportAccProcessFile(accProcessFile string) {
     }
     if response.StatusCode != 200 {
       fmt.Println(response)
+    } else {
+      buf := bytes.Buffer{}
+      buf.ReadFrom(response.Body)
+      fmt.Println(buf.String())
     }
   }
 
 }
 
-func MakeTestData(docsPath string) {
+func ImportTestDocs(docsPath string, user string) {
   urlPrefix := ReadURLPrefix()
   client := http.DefaultClient
-  token := LoginWithDefaultUser(client)
+  token := LoginWithUser(client, user)
 
   docs, err := ioutil.ReadDir(docsPath)
   if err != nil {
@@ -194,6 +202,17 @@ func UserMenu() (string, string) {
   return username, password
 }
 
+func PasswordMenu() (string, error) {
+  fmt.Print("Password: ")
+  reader := bufio.NewReader(os.Stdin)
+  passTmp, err := reader.ReadString('\n')
+  if err != nil {
+    return "", err
+  }
+  pass := strings.TrimSpace(passTmp)
+  return pass, nil;
+}
+
 func ExistsUser(name string, users *mgo.Collection) bool {
   n, err := users.Find(bson.M{"username": name}).Count()
   if (err != nil) {
@@ -213,9 +232,12 @@ func ReadURLPrefix() string {
   return fmt.Sprintf("http://%v:%v", httpHost, httpPort)
 }
 
-func LoginWithDefaultUser(client *http.Client) string {
-  user := "a"
-  password := "a"
+func LoginWithUser(client *http.Client, user string) string {
+  password, err := PasswordMenu()
+  if err != nil {
+    fmt.Println(err);
+    os.Exit(2);
+  }
   urlPrefix := ReadURLPrefix()
   token, err :=  Login(user, password, urlPrefix, client)
   if err != nil {
