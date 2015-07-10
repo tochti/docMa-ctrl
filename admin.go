@@ -25,11 +25,13 @@ func main() {
   var docsPath string
   var accProcessFile string
   var user string
+  var password string
 
   flag.BoolVar(&appendUser, "adduser", false, "Add default user")
   flag.StringVar(&docsPath, "importtestdocs", "", "Reset docs collection")
   flag.StringVar(&accProcessFile, "importaccprocess", "", "Import account process from csv")
   flag.StringVar(&user, "user", "", "User to access http-server")
+  flag.StringVar(&password, "password", "", "Password")
   flag.Parse()
 
   if appendUser {
@@ -37,18 +39,18 @@ func main() {
   }
 
   if (accProcessFile != "") && (user != "") {
-    ImportAccProcessFile(accProcessFile, user)
+    ImportAccProcessFile(accProcessFile, user, password)
   }
 
   if (docsPath != "") && (user != "") {
-    ImportTestDocs(docsPath, user)
+    ImportTestDocs(docsPath, user, password)
   }
 }
 
-func ImportAccProcessFile(accProcessFile string, user string) {
+func ImportAccProcessFile(accProcessFile string, user string, password string) {
   urlPrefix := ReadURLPrefix()
   client := http.DefaultClient
-  token := LoginWithUser(client, user)
+  token := LoginWithUser(client, user, password)
 
   accProcessList, err := bebber.ReadAccProcessFile(accProcessFile)
   if err != nil {
@@ -88,10 +90,10 @@ func ImportAccProcessFile(accProcessFile string, user string) {
 
 }
 
-func ImportTestDocs(docsPath string, user string) {
+func ImportTestDocs(docsPath string, user string, password string) {
   urlPrefix := ReadURLPrefix()
   client := http.DefaultClient
-  token := LoginWithUser(client, user)
+  token := LoginWithUser(client, user, password)
 
   docs, err := ioutil.ReadDir(docsPath)
   if err != nil {
@@ -232,12 +234,16 @@ func ReadURLPrefix() string {
   return fmt.Sprintf("http://%v:%v", httpHost, httpPort)
 }
 
-func LoginWithUser(client *http.Client, user string) string {
-  password, err := PasswordMenu()
-  if err != nil {
-    fmt.Println(err);
-    os.Exit(2);
+func LoginWithUser(client *http.Client, user string, password string) string {
+  if password == "" {
+    var err error
+    password, err = PasswordMenu()
+    if err != nil {
+      fmt.Println(err);
+      os.Exit(2);
+    }
   }
+
   urlPrefix := ReadURLPrefix()
   token, err :=  Login(user, password, urlPrefix, client)
   if err != nil {
