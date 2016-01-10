@@ -8,6 +8,5 @@ import (
 func CreateTables() error {
 	db := bebber.InitMySQL()
 
-	labels.AddTables(db)
 	return labels.CreateTables(db)
 }
