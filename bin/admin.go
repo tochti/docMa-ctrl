@@ -15,7 +15,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rrawrriw/bebber"
+	"github.com/tochti/docMa-ctrl/cmds"
+	"github.com/tochti/docMa-handler"
+	"github.com/tochti/gin-gum/gumspecs"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -26,13 +28,17 @@ func main() {
 	var accProcessFile string
 	var user string
 	var password string
+	var createTables bool
 
 	flag.BoolVar(&appendUser, "adduser", false, "Add default user")
 	flag.StringVar(&docsPath, "importtestdocs", "", "Reset docs collection")
 	flag.StringVar(&accProcessFile, "importaccprocess", "", "Import account process from csv")
 	flag.StringVar(&user, "user", "", "User to access http-server")
 	flag.StringVar(&password, "password", "", "Password")
+	flag.BoolVar(&createTables, "createtables", false, "Create all database tables")
 	flag.Parse()
+
+	gumspecs.AppName = "docma"
 
 	if appendUser {
 		AppendUser()
@@ -44,6 +50,17 @@ func main() {
 
 	if (docsPath != "") && (user != "") {
 		ImportTestDocs(docsPath, user, password)
+	}
+
+	if createTables {
+		err := cmds.CreateTables()
+		if err != nil {
+			fmt.Println(err)
+			return
+		} else {
+			fmt.Println("done!")
+			return
+		}
 	}
 }
 
