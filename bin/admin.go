@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"crypto/sha1"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -18,30 +17,48 @@ import (
 	"github.com/tochti/docMa-ctrl/cmds"
 	"github.com/tochti/docMa-handler"
 	"github.com/tochti/gin-gum/gumspecs"
-	"gopkg.in/mgo.v2"
-	"gopkg.in/mgo.v2/bson"
 )
 
 func main() {
-	var appendUser bool
 	var docsPath string
 	var accProcessFile string
 	var user string
 	var password string
+	var newUser bool
 	var createTables bool
 
-	flag.BoolVar(&appendUser, "adduser", false, "Add default user")
 	flag.StringVar(&docsPath, "importtestdocs", "", "Reset docs collection")
 	flag.StringVar(&accProcessFile, "importaccprocess", "", "Import account process from csv")
 	flag.StringVar(&user, "user", "", "User to access http-server")
 	flag.StringVar(&password, "password", "", "Password")
+
+	flag.BoolVar(&newUser, "newuser", false, "Create new default user")
 	flag.BoolVar(&createTables, "createtables", false, "Create all database tables")
+
 	flag.Parse()
 
 	gumspecs.AppName = "docma"
 
-	if appendUser {
-		AppendUser()
+	if newUser {
+		err := cmds.NewUser()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		fmt.Println("New user created!")
+		return
+	}
+
+	if createTables {
+		err := cmds.CreateTables()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		fmt.Println("Tabels created")
+		return
 	}
 
 	if (accProcessFile != "") && (user != "") {
@@ -52,16 +69,6 @@ func main() {
 		ImportTestDocs(docsPath, user, password)
 	}
 
-	if createTables {
-		err := cmds.CreateTables()
-		if err != nil {
-			fmt.Println(err)
-			return
-		} else {
-			fmt.Println("done!")
-			return
-		}
-	}
 }
 
 func ImportAccProcessFile(accProcessFile string, user string, password string) {
@@ -185,42 +192,6 @@ func ReadToken(r *http.Response) (string, error) {
 	}
 }
 
-func AppendUser() {
-	session, err := mgo.Dial(bebber.GetSettings("BEBBER_DB_SERVER"))
-	if err != nil {
-		fmt.Println(err.Error())
-		return
-	}
-	db := session.DB(bebber.GetSettings("BEBBER_DB_NAME"))
-	users := db.C(bebber.UsersColl)
-	username, password := UserMenu()
-	if ExistsUser(username, users) {
-		fmt.Println(username, "already exists!")
-		return
-	}
-	user := bebber.User{Username: username,
-		Password: password}
-	err = users.Insert(user)
-	if err != nil {
-		fmt.Println(err.Error())
-		return
-	} else {
-		fmt.Println(username, "save completed!")
-	}
-}
-
-func UserMenu() (string, string) {
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("Username: ")
-	username, _ := reader.ReadString('\n')
-	username = strings.TrimSpace(username)
-	fmt.Print("Password: ")
-	passTmp, _ := reader.ReadString('\n')
-	passTmp = strings.TrimSpace(passTmp)
-	password := fmt.Sprintf("%x", sha1.Sum([]byte(passTmp)))
-	return username, password
-}
-
 func PasswordMenu() (string, error) {
 	fmt.Print("Password: ")
 	reader := bufio.NewReader(os.Stdin)
@@ -230,19 +201,6 @@ func PasswordMenu() (string, error) {
 	}
 	pass := strings.TrimSpace(passTmp)
 	return pass, nil
-}
-
-func ExistsUser(name string, users *mgo.Collection) bool {
-	n, err := users.Find(bson.M{"username": name}).Count()
-	if err != nil {
-		return false
-	}
-
-	if n > 0 {
-		return true
-	} else {
-		return false
-	}
 }
 
 func ReadURLPrefix() string {
