@@ -26,6 +26,7 @@ func main() {
 	var password string
 	var newUser bool
 	var createTables bool
+	var migrate bool
 
 	flag.StringVar(&docsPath, "importtestdocs", "", "Reset docs collection")
 	flag.StringVar(&accProcessFile, "importaccprocess", "", "Import account process from csv")
@@ -34,6 +35,7 @@ func main() {
 
 	flag.BoolVar(&newUser, "newuser", false, "Create new default user")
 	flag.BoolVar(&createTables, "createtables", false, "Create all database tables")
+	flag.BoolVar(&migrate, "migrate", false, "Migrate from mongodb to mysql")
 
 	flag.Parse()
 
@@ -58,6 +60,17 @@ func main() {
 		}
 
 		fmt.Println("Tabels created")
+		return
+	}
+
+	if migrate {
+		err := cmds.Migrate()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		fmt.Println("Migration done")
 		return
 	}
 
