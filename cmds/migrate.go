@@ -101,7 +101,7 @@ func Migrate() error {
 	if err != nil {
 		return err
 	}
-	mgoDB := mgoSession.DB(MongoDBTestDB)
+	mgoDB := mgoSession.DB(mgoSpecs.DBName)
 
 	err = MigrateLabels(sqlDB, mgoDB)
 	if err != nil {
@@ -253,14 +253,8 @@ func BatchInsert(sqlDB *gorp.DbMap, fields string, data []interface{}, table str
 		}
 	}
 
-	q = fmt.Sprintf("SELECT COUNT(*) FROM %v", table)
-	c, err := sqlDB.SelectInt(q)
-	if err != nil {
-		return err
-	}
-
-	if c != int64(count) || count != len(data) {
-		msg := fmt.Sprintf("Expect %v data was %v", len(data), c)
+	if count != len(data) {
+		msg := fmt.Sprintf("Expect %v data was %v - %v", len(data), count, data)
 		return errors.New(msg)
 	}
 
