@@ -7,12 +7,9 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
-	"path"
 	"strings"
-	"time"
 
 	"github.com/tochti/docMa-ctrl/cmds"
 	"github.com/tochti/docMa-handler"
@@ -28,14 +25,14 @@ func main() {
 	var createTables bool
 	var migrate bool
 
-	flag.StringVar(&docsPath, "importtestdocs", "", "Reset docs collection")
-	flag.StringVar(&accProcessFile, "importaccprocess", "", "Import account process from csv")
-	flag.StringVar(&user, "user", "", "User to access http-server")
-	flag.StringVar(&password, "password", "", "Password")
+	//flag.StringVar(&accProcessFile, "importaccprocess", "", "Import account process from csv")
+	//flag.StringVar(&user, "user", "", "User to access http-server")
+	//flag.StringVar(&password, "password", "", "Password")
 
 	flag.BoolVar(&newUser, "newuser", false, "Create new default user")
 	flag.BoolVar(&createTables, "createtables", false, "Create all database tables")
 	flag.BoolVar(&migrate, "migrate", false, "Migrate from mongodb to mysql")
+	flag.StringVar(&docsPath, "importdocs", "", "Import docs")
 
 	flag.Parse()
 
@@ -78,8 +75,15 @@ func main() {
 		ImportAccProcessFile(accProcessFile, user, password)
 	}
 
-	if (docsPath != "") && (user != "") {
-		ImportTestDocs(docsPath, user, password)
+	if docsPath != "" {
+		err := cmds.ImportDocs(docsPath)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		fmt.Println("Import done")
+		return
 	}
 
 }
@@ -125,48 +129,6 @@ func ImportAccProcessFile(accProcessFile string, user string, password string) {
 		}
 	}
 
-}
-
-func ImportTestDocs(docsPath string, user string, password string) {
-	urlPrefix := ReadURLPrefix()
-	client := http.DefaultClient
-	token := LoginWithUser(client, user, password)
-
-	docs, err := ioutil.ReadDir(docsPath)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(2)
-	}
-
-	makeUrl := urlPrefix + "/Doc"
-	authHeader := http.Header{}
-	authHeader.Add(bebber.TokenHeaderField, token)
-	for i, f := range docs {
-		base := path.Base(f.Name())
-		now := time.Now()
-		requestBody := fmt.Sprintf(`{
-      "Name": "%v",
-      "Infos": {"DateOfScan": "%v", "DateOfReceipt": "%v"},
-      "Labels": ["Neu"]
-    }`, base, now.Format(time.RFC3339), now.Format(time.RFC3339))
-		reader := strings.NewReader(requestBody)
-		makeRequest, err := http.NewRequest("POST", makeUrl, reader)
-		makeRequest.Header = authHeader
-		if err != nil {
-			fmt.Println(err.Error())
-			continue
-		}
-		fmt.Println(i, base)
-		response, err := client.Do(makeRequest)
-		if err != nil {
-			fmt.Println(response)
-			fmt.Println(err.Error())
-			continue
-		}
-		buf := bytes.Buffer{}
-		buf.ReadFrom(response.Body)
-		fmt.Println(buf.String())
-	}
 }
 
 func Login(user, password, urlPrefix string, c *http.Client) (string, error) {

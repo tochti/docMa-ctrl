@@ -230,7 +230,9 @@ func BatchInsert(sqlDB *gorp.DbMap, fields string, data []interface{}, table str
 
 		// When the insert query is bigger then 1Mbyte write it to db
 		if size > 1000000 {
-			_, err := sqlDB.Exec(fmt.Sprintf("%v %v", q, iData.String()))
+			e := fmt.Sprintf("%v %v", q, iData.String())
+			fmt.Println(e)
+			_, err := sqlDB.Exec(e)
 			if err != nil {
 				return err
 			}
@@ -247,7 +249,9 @@ func BatchInsert(sqlDB *gorp.DbMap, fields string, data []interface{}, table str
 	}
 
 	if iData.Len() > 0 {
-		_, err := sqlDB.Exec(fmt.Sprintf("%v %v", q, iData.String()))
+		e := fmt.Sprintf("%v %v", q, iData.String())
+		fmt.Println(e)
+		_, err := sqlDB.Exec(e)
 		if err != nil {
 			return err
 		}

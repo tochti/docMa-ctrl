@@ -2,7 +2,6 @@ package cmds
 
 import (
 	"fmt"
-	"os"
 	"reflect"
 	"strconv"
 	"testing"
@@ -15,11 +14,6 @@ import (
 	"github.com/tochti/docMa-handler/docs"
 	"github.com/tochti/docMa-handler/labels"
 	"github.com/tochti/gin-gum/gumtest"
-)
-
-var (
-	MySQLTestDB   = "testing"
-	MongoDBTestDB = "testing"
 )
 
 func Test_ReadMonogDBSpecs(t *testing.T) {
@@ -440,7 +434,6 @@ func initDB(t *testing.T) (*gorp.DbMap, *mgo.Database) {
 
 	mgoSpecs := ReadMongoDBSpecs()
 	mgoSession, err := mgo.Dial(mgoSpecs.String())
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -452,17 +445,4 @@ func initDB(t *testing.T) (*gorp.DbMap, *mgo.Database) {
 	}
 
 	return dbMap, mgoDB
-}
-
-func setenv() {
-	os.Clearenv()
-
-	os.Setenv("MYSQL_USER", "tochti")
-	os.Setenv("MYSQL_PASSWORD", "123")
-	os.Setenv("MYSQL_HOST", "127.0.0.1")
-	os.Setenv("MYSQL_PORT", "3306")
-	os.Setenv("MYSQL_DB_NAME", MySQLTestDB)
-
-	os.Setenv("MONGODB_HOST", "127.0.0.1")
-	os.Setenv("MONGODB_DB_NAME", MongoDBTestDB)
 }
