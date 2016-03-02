@@ -7,6 +7,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -16,14 +17,19 @@ import (
 	"github.com/tochti/gin-gum/gumspecs"
 )
 
+type (
+	blackhole struct{}
+)
+
 func main() {
-	var docsPath string
 	var accProcessFile string
 	var user string
 	var password string
 	var newUser bool
 	var createTables bool
 	var migrate bool
+	var docsPath string
+	var debug bool
 
 	//flag.StringVar(&accProcessFile, "importaccprocess", "", "Import account process from csv")
 	//flag.StringVar(&user, "user", "", "User to access http-server")
@@ -32,11 +38,16 @@ func main() {
 	flag.BoolVar(&newUser, "newuser", false, "Create new default user")
 	flag.BoolVar(&createTables, "createtables", false, "Create all database tables")
 	flag.BoolVar(&migrate, "migrate", false, "Migrate from mongodb to mysql")
+	flag.BoolVar(&debug, "debug", false, "Enable debugging output")
 	flag.StringVar(&docsPath, "importdocs", "", "Import docs")
 
 	flag.Parse()
 
 	gumspecs.AppName = "docma"
+
+	if !debug {
+		log.SetOutput(blackhole{})
+	}
 
 	if newUser {
 		err := cmds.NewUser()
@@ -86,6 +97,10 @@ func main() {
 		return
 	}
 
+}
+
+func (blackhole) Write(b []byte) (int, error) {
+	return 0, nil
 }
 
 func ImportAccProcessFile(accProcessFile string, user string, password string) {
