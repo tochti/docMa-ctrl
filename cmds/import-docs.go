@@ -45,9 +45,7 @@ func ImportDocs(dir string) error {
 		date, id, err := ParseFilename(filename)
 		if err != nil {
 			log.Println(err)
-			continue
 		}
-		fmt.Println(filename, date, id)
 		d := docs.Doc{
 			Name:          filename,
 			Barcode:       id,
