@@ -29,6 +29,8 @@ func main() {
 	var createTables bool
 	var migrate bool
 	var docsPath string
+	var txsPath string
+	var cleartxstable bool
 	var debug bool
 
 	//flag.StringVar(&accProcessFile, "importaccprocess", "", "Import account process from csv")
@@ -40,6 +42,8 @@ func main() {
 	flag.BoolVar(&migrate, "migrate", false, "Migrate from mongodb to mysql")
 	flag.BoolVar(&debug, "debug", false, "Enable debugging output")
 	flag.StringVar(&docsPath, "importdocs", "", "Import docs")
+	flag.StringVar(&txsPath, "importtxs", "", "Import accounting transactions")
+	flag.BoolVar(&cleartxstable, "cleartxstable", false, "Clear accounting transaction database table")
 
 	flag.Parse()
 
@@ -95,6 +99,22 @@ func main() {
 
 		fmt.Println("Import done")
 		return
+	}
+
+	if txsPath != "" {
+		err := cmds.ImportAccountingTxs(txsPath)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+	}
+
+	if cleartxstable {
+		err := cmds.ClearAccountingTxsTable()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
 	}
 
 }
