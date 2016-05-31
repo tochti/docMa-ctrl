@@ -1,6 +1,7 @@
 package cmds
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -67,7 +68,7 @@ func ImportDocs(dir string) error {
 		d, _ := i.(*docs.Doc)
 		return fmt.Sprintf("(%v,%v)", d.ID, newLabel.ID)
 	}
-	err = BatchInsert(db, "(doc_id,label_id)", newDocs, docs.DocsLabelsTable, dFn)
+	err = BatchInsertOrIgnore(db, "(doc_id,label_id)", newDocs, docs.DocsLabelsTable, dFn)
 	if err != nil {
 		return err
 	}
@@ -77,7 +78,7 @@ func ImportDocs(dir string) error {
 		d, _ := i.(*docs.Doc)
 		return fmt.Sprintf("(%v,%v,'%v','%v')", d.ID, 0, zeroDate, zeroDate)
 	}
-	err = BatchInsert(
+	err = BatchInsertOrIgnore(
 		db,
 		"(doc_id,account_number,period_from,period_to)",
 		newDocs,
@@ -133,7 +134,7 @@ func InsertOrUpdateDoc(db *gorp.DbMap, doc docs.Doc) (int64, error) {
 		INSERT INTO %v 
 		(name, barcode, date_of_scan, date_of_receipt, note)
 		VALUES (?,?,?,?,?)
-		ON DUPLICATE KEY UPDATE barcode=?, date_of_scan=?, date_of_receipt=?, note=?`,
+		ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id), barcode=?, date_of_scan=?, date_of_receipt=?, note=?`,
 		docs.DocsTable)
 
 	result, err := db.Exec(q,
@@ -149,4 +150,54 @@ func InsertOrUpdateDoc(db *gorp.DbMap, doc docs.Doc) (int64, error) {
 	}
 
 	return id, nil
+}
+
+func BatchInsertOrIgnore(sqlDB *gorp.DbMap, fields string, data []interface{}, table string, valueSta func(interface{}) string) error {
+	if len(data) == 0 {
+		return nil
+	}
+
+	q := fmt.Sprintf("INSERT IGNORE INTO %v %v VALUES", table, fields)
+	iData := bytes.NewBufferString(valueSta(data[0]))
+	size := len(q) + iData.Len()
+	count := 1
+	for x := 1; x < len(data); x++ {
+		d := fmt.Sprintf(",%v", valueSta(data[x]))
+		size += len(d)
+
+		// When the insert query is bigger then 1Mbyte write it to db
+		if size > 1000000 {
+			e := fmt.Sprintf("%v %v", q, iData.String())
+			log.Println(e)
+			_, err := sqlDB.Exec(e)
+			if err != nil {
+				return err
+			}
+
+			iData = bytes.NewBufferString(valueSta(data[x]))
+			size = len(q)
+			count++
+			continue
+		}
+
+		iData.WriteString(d)
+		count++
+
+	}
+
+	if iData.Len() > 0 {
+		e := fmt.Sprintf("%v %v", q, iData.String())
+		log.Println(e)
+		_, err := sqlDB.Exec(e)
+		if err != nil {
+			return err
+		}
+	}
+
+	if count != len(data) {
+		msg := fmt.Sprintf("Expect %v data was %v - %v", len(data), count, data)
+		return errors.New(msg)
+	}
+
+	return nil
 }
