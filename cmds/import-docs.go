@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"gopkg.in/gorp.v1"
+
 	"github.com/tochti/docMa-handler/common"
 	"github.com/tochti/docMa-handler/docs"
 	"github.com/tochti/docMa-handler/labels"
@@ -42,25 +44,21 @@ func ImportDocs(dir string) error {
 	newDocs := []interface{}{}
 	for _, doc := range l {
 		filename := path.Base(doc.Name())
-		date, id, err := ParseFilename(filename)
+		date, barcode, err := ParseFilename(filename)
 		if err != nil {
 			log.Println(err)
 		}
 		d := docs.Doc{
 			Name:          filename,
-			Barcode:       id,
+			Barcode:       barcode,
 			DateOfScan:    date,
 			DateOfReceipt: date,
 		}
-		err = db.Insert(&d)
+		id, err := InsertOrUpdateDoc(db, d)
 		if err != nil {
-			if strings.Contains(err.Error(), "Duplicate entry") {
-				log.Println(err)
-				continue
-			}
-
 			return err
 		}
+		d.ID = id
 
 		newDocs = append(newDocs, &d)
 	}
@@ -128,4 +126,27 @@ func ParseFilename(n string) (time.Time, string, error) {
 	id := r[1]
 
 	return date, id, nil
+}
+
+func InsertOrUpdateDoc(db *gorp.DbMap, doc docs.Doc) (int64, error) {
+	q := fmt.Sprintf(`
+		INSERT INTO %v 
+		(name, barcode, date_of_scan, date_of_receipt, note)
+		VALUES (?,?,?,?,?)
+		ON DUPLICATE KEY UPDATE barcode=?, date_of_scan=?, date_of_receipt=?, note=?`,
+		docs.DocsTable)
+
+	result, err := db.Exec(q,
+		doc.Name, doc.Barcode, doc.DateOfScan, doc.DateOfReceipt, doc.Note,
+		doc.Barcode, doc.DateOfScan, doc.DateOfReceipt, doc.Note)
+	if err != nil {
+		return -1, err
+	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return -1, err
+	}
+
+	return id, nil
 }
